@@ -4,22 +4,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:restaurant_app/model/restaurant.dart';
-import 'package:restaurant_app/restaurant_detail.dart';
+import 'package:restaurant_app/pages/restaurant_detail.dart';
 
 class RestaurantList extends StatefulWidget {
+  final String title;
   static const routeName = '/restaurant_list';
+
+  const RestaurantList({Key? key, required this.title}) : super(key: key);
 
   @override
   _RestaurantListState createState() => _RestaurantListState();
 }
 
 class _RestaurantListState extends State<RestaurantList> {
+  bool _searchBoolean = false;
   List<Restaurant> restaurants = [];
+  TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     loadJsonData();
+    searchController.addListener(() {
+      setState(() {
+        searchQuery = searchController.text;
+      });
+    });
   }
 
   Future<void> loadJsonData() async {
@@ -36,23 +47,62 @@ class _RestaurantListState extends State<RestaurantList> {
 
   @override
   Widget build(BuildContext context) {
+    List<Restaurant> filteredRestaurants = restaurants.where((restaurant) {
+      return restaurant.name
+              .toLowerCase()
+              .contains(searchQuery.toLowerCase()) ||
+          restaurant.city.toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurant App'),
-      ),
-      body: restaurants.isEmpty
+          title: !_searchBoolean ? Text(widget.title) : _searchTextField(),
+          actions: !_searchBoolean
+              ? [
+                  IconButton(
+                      icon: Icon(Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _searchBoolean = true;
+                        });
+                      })
+                ]
+              : [
+                  IconButton(
+                      icon: Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchBoolean = false;
+                        });
+                      })
+                ]),
+      body: filteredRestaurants.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              itemCount: restaurants.length,
+              itemCount: filteredRestaurants.length,
               itemBuilder: (context, index) {
-                return _buildRestaurantItem(context, restaurants[index]);
+                return _buildRestaurantItem(
+                    context, filteredRestaurants[index]);
               },
             ),
     );
   }
 
+  TextField _searchTextField() {
+    return TextField(
+      controller: searchController,
+      cursorColor: Colors.black,
+      decoration: const InputDecoration(
+        hintText: 'Search Restaurants',
+        hintStyle: TextStyle(color: Colors.black54),
+      ),
+      style: TextStyle(color: Colors.black, fontSize: 16.0),
+    );
+  }
+
   Card _buildRestaurantItem(BuildContext context, Restaurant restaurant) {
     return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         leading: ClipRRect(
@@ -98,5 +148,11 @@ class _RestaurantListState extends State<RestaurantList> {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 }
